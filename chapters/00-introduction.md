@@ -1,3 +1,5 @@
+[← Table of Contents](TOC.md)
+
 # Customer Sales Data: A Practical Guide to Building and Using Sales Intelligence
 
 **A textbook for service and product suppliers on organizing, understanding, and acting on customer data.**
@@ -232,3 +234,7 @@ The schema workbook (`schema/Customer_Processing_Schema.xlsx`) is updated alongs
 ---
 
 *Phase I complete. The database implementation supporting this schema is built in Phase II using Supabase. The CRM application implementing these concepts with live data is available in Phase III.*
+
+---
+
+**[Next Chapter → Chapter 1: Knowing Your Customer](01-knowing-your-customer.md)**
