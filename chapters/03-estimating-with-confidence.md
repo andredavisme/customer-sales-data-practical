@@ -2,7 +2,7 @@
 
 # Chapter 3: Estimating with Confidence
 
-**Tier II** | *Cost vs. price modeling, margin tracking, SKU introduction*
+**Tier II** | *Cost vs. price modeling, margin tracking, SKU introduction, user accountability*
 
 ---
 
@@ -14,7 +14,7 @@ Tier I captures the skeleton of that answer: an estimated delivery date, a cost,
 
 Consider a job that comes in over budget at delivery. You pull up the estimate and find a single cost figure: $14,200. Was that one line item or forty? Was it a product cost, a labor cost, or both? Did anyone flag a risk before the job started? The data cannot tell you. The estimate was recorded as an outcome, not as a process — and when something goes wrong, there is nothing to audit.
 
-Tier II changes that. It introduces the building blocks of the estimate: the individual products and services being priced, the margin being targeted, and a structured approach to flagging risk before a quote is ever sent.
+Tier II changes that. It introduces the building blocks of the estimate: the individual products and services being priced, the margin being targeted, a structured approach to flagging risk before a quote is ever sent, and — for the first time in this schema — the person responsible for the work.
 
 ---
 
@@ -77,28 +77,43 @@ This separation — type for filtering and routing, notes for context — is a p
 
 ---
 
-## Who Built This Estimate, and When?
+## Individual Accountability and the User Table
 
-Estimates are prepared by people. People make different assumptions, apply different judgment, and carry different levels of accuracy. Without knowing who prepared an estimate and when, you cannot identify systematic over- or under-estimating at the individual level, and you cannot hold the estimation process accountable.
+Estimates are prepared by people. People make different assumptions, apply different judgment, and carry different levels of accuracy. Knowing *who* built an estimate — and holding that answer in a structured, consistent way — is the foundation of process accountability.
 
-Tier II adds `est_prepared_by` and `est_date` to the estimate table. These two fields are the minimum required to audit the estimation process over time.
+The naive approach is to store the preparer's name as a text field: `est_prepared_by = 'Maria Santos'`. This works until Maria goes by "M. Santos" in one record, "msantos" in another, and "Maria S." in a third. Text fields applied to people decay into inconsistency. They cannot be reliably grouped, filtered, or joined.
+
+The right approach is to store a reference to a person record: `est_prepared_by = user_id`. That user record lives in a dedicated `user` table — a single source of truth for every person in your organization who interacts with the data.
+
+### Why a Dedicated User Table?
+
+The `user` table serves three purposes that extend well beyond the estimate:
+
+1. **Consolidation of roles** — A user's role — estimator, sales rep, operations manager, approver — is stored once and referenced wherever that person appears in the schema. When a user's role changes, one record updates and the change is reflected everywhere.
+
+2. **Consistent ownership across tables** — The `req_owner` field introduced in Chapter 2, the `est_prepared_by` field in this chapter, and every future ownership or assignment field in the schema will all reference the same `user` table. This means you can ask cross-table questions: *which users have the most open requests AND the most pending estimates?*
+
+3. **Future security access** — In Phase II, when this schema is implemented in a live database, the `user` table becomes the anchor for row-level security, permission scoping, and audit logging. The groundwork laid here — a clean, normalized user record — makes that implementation straightforward rather than retrofitted.
+
+Introducing the `user` table in Chapter 3 is intentional. The estimate is the first record in the chain where internal accountability is both meaningful and analytically valuable. It is also the right moment to establish the pattern before it is needed in every subsequent chapter.
 
 ---
 
 ## Tier II Schema Updates
 
-### Updated: `estimate` Table
+### New Table: `user`
 
-New attributes added in Tier II:
+The internal user directory. Every person in your organization who creates, owns, approves, or acts on a record references this table.
 
 | Tier | Column Name | Attribute Name | Notes |
 |------|-------------|---------------|-------|
-| II | `est_date` | Estimate Date | Timestamp when the estimate was prepared; system-generated |
-| II | `est_prepared_by` | Prepared By | Internal user who built the estimate |
-| II | `est_alert_type` | Alert Type | Controlled vocabulary: e.g., Supply Risk, Margin Below Threshold, Lead Time Uncertainty, Requires Approval |
-| II | `est_alert_notes` | Alert Notes | Free-text detail supporting the alert type |
-
-*Note: `est_alerts` from Tier I is superseded by `est_alert_type` and `est_alert_notes` in Tier II.*
+| II | `user_id` | User ID | Primary key |
+| II | `user_first_name` | First Name | |
+| II | `user_last_name` | Last Name | |
+| II | `user_email` | Email Address | Unique — used as login identifier |
+| II | `user_role` | Role | Functional role in the organization: e.g., Estimator, Sales Rep, Operations Manager, Approver |
+| II | `user_department` | Department | Organizational unit: e.g., Sales, Operations, Finance |
+| II | `user_active` | Active Flag | Boolean — false if the user has left the organization |
 
 ### New Table: `sku`
 
@@ -129,6 +144,27 @@ The individual line items that make up an estimate. One row per SKU per estimate
 | II | `est_line_price` | Line Price | Actual price for this line (may differ from `sku_std_price`) |
 | II | `est_line_notes` | Line Notes | Optional clarification or override rationale for this line |
 
+### Updated: `estimate` Table
+
+New attributes added in Tier II:
+
+| Tier | Column Name | Attribute Name | Notes |
+|------|-------------|---------------|-------|
+| II | `est_date` | Estimate Date | Timestamp when the estimate was prepared; system-generated |
+| II | `est_prepared_by` | Prepared By | Foreign key → `user`; the user who built the estimate |
+| II | `est_alert_type` | Alert Type | Controlled vocabulary: e.g., Supply Risk, Margin Below Threshold, Lead Time Uncertainty, Requires Approval |
+| II | `est_alert_notes` | Alert Notes | Free-text detail supporting the alert type |
+
+*Note: `est_alerts` from Tier I is superseded by `est_alert_type` and `est_alert_notes` in Tier II. `est_prepared_by` references `user.user_id` — not a text name.*
+
+### Updated: `request` Table (retroactive)
+
+With the `user` table now established, the `req_owner` field introduced in Chapter 2 is formalized as a foreign key:
+
+| Tier | Column Name | Attribute Name | Notes |
+|------|-------------|---------------|-------|
+| II | `req_owner` | Request Owner | Foreign key → `user`; previously noted as a text field in Chapter 2 |
+
 ---
 
 ## Analytical Application
@@ -157,12 +193,13 @@ Sorting by margin ascending surfaces the most at-risk deals first — the ones m
 SELECT
   e.est_id,
   c.cust_name,
-  e.est_prepared_by,
+  u.user_first_name || ' ' || u.user_last_name AS prepared_by,
   e.est_alert_type,
   e.est_alert_notes,
   e.est_date
 FROM estimate e
 JOIN customer c ON e.cust_id = c.cust_id
+JOIN "user" u ON e.est_prepared_by = u.user_id
 WHERE e.est_alert_type = 'Requires Approval'
 ORDER BY e.est_date ASC;
 ```
@@ -188,17 +225,40 @@ This query identifies SKUs that are consistently estimated above or below standa
 
 ```sql
 SELECT
-  e.est_prepared_by,
-  COUNT(e.est_id)                                             AS estimates_prepared,
-  ROUND(AVG(ABS(e.est_cost - o.ord_cost)), 2)               AS avg_cost_variance,
-  ROUND(AVG(ABS(e.est_price - o.ord_price)), 2)             AS avg_price_variance
+  u.user_first_name || ' ' || u.user_last_name           AS estimator,
+  COUNT(e.est_id)                                         AS estimates_prepared,
+  ROUND(AVG(ABS(e.est_cost - o.ord_cost)), 2)            AS avg_cost_variance,
+  ROUND(AVG(ABS(e.est_price - o.ord_price)), 2)          AS avg_price_variance
 FROM estimate e
+JOIN "user" u ON e.est_prepared_by = u.user_id
 JOIN "order" o ON e.est_id = o.est_id
-GROUP BY e.est_prepared_by
+GROUP BY u.user_id, estimator
 ORDER BY avg_cost_variance ASC;
 ```
 
-This query compares what was estimated to what was eventually ordered, by preparer. Lower variance means more accurate estimation. It is one of the few queries in this textbook that evaluates individual performance — use it to coach and improve, not to punish.
+This query compares what was estimated to what was eventually ordered, by preparer. Lower variance means more accurate estimation. Use this to coach and improve, not to punish.
+
+### Which users have both open requests and pending estimates?
+
+```sql
+SELECT
+  u.user_id,
+  u.user_first_name || ' ' || u.user_last_name           AS user_name,
+  COUNT(DISTINCT r.req_id)                                AS open_requests,
+  COUNT(DISTINCT e.est_id)                                AS pending_estimates
+FROM "user" u
+LEFT JOIN request r
+  ON r.req_owner = u.user_id AND r.req_status = 'Open'
+LEFT JOIN estimate e
+  ON e.est_prepared_by = u.user_id
+  AND e.est_alert_type IS NOT NULL
+GROUP BY u.user_id, user_name
+HAVING COUNT(DISTINCT r.req_id) > 0
+   AND COUNT(DISTINCT e.est_id) > 0
+ORDER BY open_requests DESC;
+```
+
+This cross-table query is only possible because both `req_owner` and `est_prepared_by` reference the same `user` table. It demonstrates the payoff of the architectural decision made in this chapter.
 
 ---
 
@@ -208,9 +268,11 @@ This query compares what was estimated to what was eventually ordered, by prepar
 
 2. Think about your most common products or services. Could you assign each one a SKU with a standard cost and a standard price? What would prevent that standardization, and what would it take to get there?
 
-3. What does your current margin look like at the estimate stage vs. at the order stage? If those numbers differ significantly, where in the process does the gap open?
+3. How are people currently identified in your data systems? Are names stored as text in multiple places? What inconsistencies has that created, and what would a single user record resolve?
 
-4. Has your organization ever delivered a job that was profitable on paper but a loss in practice? What information, captured at the estimate stage, might have predicted that outcome?
+4. If you could query every open request and every pending estimate by the person responsible for each — in a single query — what would that tell you about your team's current workload distribution?
+
+5. Has your organization ever delivered a job that was profitable on paper but a loss in practice? What information, captured at the estimate stage, might have predicted that outcome?
 
 ---
 
