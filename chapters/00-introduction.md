@@ -105,7 +105,7 @@ The anchor of the entire data model. Every record in every other table ultimatel
 
 ### Request
 
-Captures the initial expression of need from the customer.
+Captures the initial expression of need from the customer. The `req_delivery_date` field is the customer's stated or implied target — the "when" of their ask. It is the anchor for all downstream date comparisons across the estimate, quote, and order.
 
 | Column Name | Attribute Name | Notes |
 |-------------|---------------|-------|
@@ -113,6 +113,7 @@ Captures the initial expression of need from the customer.
 | `cust_id` | Customer ID | Foreign key → Customer |
 | `req_type` | Request Type | e.g., New, Renewal, Change |
 | `cust_req` | Customer Request | Free-text or structured description |
+| `req_delivery_date` | Requested Delivery Date | The date the customer needs delivery; the origin point for all scheduling comparisons downstream |
 
 ### Estimate
 
