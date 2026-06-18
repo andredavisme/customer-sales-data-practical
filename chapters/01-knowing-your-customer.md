@@ -8,9 +8,9 @@
 
 ## Business Context
 
-The Tier I `customer` table gives you four things: an ID, a type, a name, and a branch. That is enough to count customers and link them to transactions. It is not enough to actually *know* them.
+The Tier I `customer` table gives you four things: an ID, a type, a name, and a branch. That is enough to count customers, link them to transactions, and answer basic branch-level questions. It is not enough to actually *know* them.
 
-Consider what happens when a delivery goes wrong. You need to call someone. Who? The `customer` table has no phone number, no email, no name of the person who placed the order. You know the company. You do not know the contact.
+Consider what happens when a delivery goes wrong. You need to call someone. Who? The `customer` table has no phone number, no email, no name of the person who placed the order. You know the company and the branch. You do not know the contact.
 
 Or consider a quarterly business review. Your VP asks which customer segments are driving the most revenue. You have `cust_type`, but it was entered inconsistently — some records say "Direct," others say "direct client," others are blank. The field exists, but the data is not usable.
 
@@ -20,16 +20,17 @@ This is the pattern that Tier II addresses: the foundation is in place, but the 
 
 ## The Data Gap
 
-With only the Tier I `customer` table, here are the questions you *cannot* answer:
+With only the Tier I `customer` table, here are the questions you *cannot* reliably answer:
 
 - Who is the primary contact at this account?
 - Who should receive the quote? Who approves the order?
-- Does this customer have multiple locations, each with their own purchasing behavior?
-- Is this a subsidiary of a larger parent account we also serve?
+- How many distinct branches are associated with a customer — and are they all being served consistently?
+- Is this customer a subsidiary of a larger parent account we also serve?
 - What industry is this customer in, and how does that affect how we serve them?
-- When did we first acquire this customer, and how long have they been with us?
 
-None of these require exotic data. They require a more complete customer record and a dedicated contact structure.
+A note on branches: `cust_branch` in Tier I does allow you to ask *"how many branches are associated with a customer name?"* — but only as reliably as that field has been populated and standardized. It is a starting point, not a structure. Tier II formalizes the relationship between branches and parent accounts so the answer is authoritative rather than approximate.
+
+A note on dates: customer initiation and last activity dates do not need to be stored directly on the customer record. No activity — request, order, delivery — can exist without a customer. The dates of a customer's first and most recent interactions are always derivable by querying their activity chain. Storing them redundantly on the customer record introduces maintenance burden without adding information. Each table in the model carries its own date-driven records; the customer record carries identity.
 
 ---
 
@@ -76,17 +77,6 @@ This single field unlocks:
 
 ---
 
-## Customer Lifecycle Dates
-
-Two timestamps belong on every customer record and are conspicuously absent from Tier I:
-
-- **`cust_since`** — The date this customer was first acquired. This is the anchor for tenure analysis, cohort reporting, and churn modeling.
-- **`cust_last_activity`** — The date of the most recent transaction or interaction. This is the single most important signal for identifying at-risk customers before they leave quietly.
-
-These fields are not complex. They require only that someone — or some automated process — populates them consistently. But their absence is responsible for an enormous share of "we didn't see it coming" customer churn.
-
----
-
 ## Tier II Schema Updates
 
 ### Updated: `customer` Table
@@ -98,8 +88,6 @@ New attributes added in Tier II:
 | II | `parent_cust_id` | Parent Customer ID | Self-referencing FK → `customer.cust_id`; null for top-level accounts |
 | II | `cust_industry` | Customer Industry | Standardized industry classification (e.g., Manufacturing, Retail, Healthcare) |
 | II | `cust_tier` | Customer Tier | Internal strategic value classification (e.g., 1, 2, 3 or Platinum, Gold, Silver) |
-| II | `cust_since` | Customer Since | Date of first acquisition |
-| II | `cust_last_activity` | Last Activity Date | Date of most recent transaction or interaction |
 
 ### New Table: `contact`
 
@@ -131,8 +119,7 @@ SELECT
   cust_industry,
   COUNT(cust_id) AS customer_count
 FROM customer
-WHERE cust_last_activity >= CURRENT_DATE - INTERVAL '12 months'
-  AND parent_cust_id IS NULL  -- count parent accounts only to avoid double-counting
+WHERE parent_cust_id IS NULL  -- count parent accounts only to avoid double-counting
 GROUP BY cust_industry
 ORDER BY customer_count DESC;
 ```
@@ -166,17 +153,33 @@ WHERE ct.cont_id IS NULL;
 
 This last query is a data quality check as much as an analytical one. Accounts with no primary contact are a liability — they are the ones you cannot reach when something goes wrong.
 
+### When did a customer first do business with us, and when was their last order?
+
+```sql
+SELECT
+  c.cust_id,
+  c.cust_name,
+  MIN(o.ord_exp_date) AS first_order_date,
+  MAX(o.ord_exp_date) AS last_order_date
+FROM customer c
+JOIN "order" o ON c.cust_id = o.cust_id
+GROUP BY c.cust_id, c.cust_name
+ORDER BY last_order_date ASC;
+```
+
+This query illustrates the principle established in the Data Gap section: customer lifecycle dates are not stored on the customer record — they are derived from the activity chain. The `order` table, linked by `cust_id`, carries the dates. The customer record carries the identity.
+
 ---
 
 ## Reflection
 
-1. Look at your own customer records. How many have a `parent_cust_id` equivalent — a relationship to another account that your current system does not capture? What does that cost you in reporting accuracy?
+1. Look at your own customer records. How many have a branch structure that your current system captures inconsistently? What questions does that prevent you from answering with confidence?
 
 2. How are contacts currently stored in your organization? Are they in the same table as accounts, in a separate CRM, in someone's email client? What would it take to normalize them into a structure like the one above?
 
 3. Choose three customer segments that would be meaningful to your business. What data would you need to populate them consistently? Who would own that data?
 
-4. When was the last time a customer left without you seeing it coming? Would a `cust_last_activity` field, consistently maintained, have given you a signal earlier?
+4. Pick any customer in your system and try to answer: when did they first do business with you, and when was their last transaction? Where did you have to look to answer that? Could it be answered with a single query against your current data?
 
 ---
 
