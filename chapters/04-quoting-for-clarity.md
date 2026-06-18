@@ -1,29 +1,51 @@
+[← Table of Contents](TOC.md)
+
 # Chapter 4: Quoting for Clarity
+
+**Tier II** | *Quote versioning, approval workflows, expiry tracking, data vs. artifacts*
+
+---
 
 ## Business Context
 
 The estimate was an internal document. The quote is the first artifact the customer sees.
 
-That distinction changes everything. An estimate carries internal cost and margin logic — it lives inside your organization. A quote is a commercial commitment: it states a price, a delivery date, and an implied promise. Once sent, it creates expectations. Once accepted, it becomes the contractual foundation of the order.
+That distinction changes everything. An estimate is typically the result of an internal conversation — a working analysis of cost, feasibility, and timing. It may be captured in your system, discussed informally, revised in a meeting, or summarized in an email thread. Whether the customer ever sees it, or in what form, varies widely by industry and organization.
 
-Because of this, quotes are different from every other record in the journey. They are revised. They expire. They require approval. And they are evaluated not just by whether they were accepted, but by *when* — and by *whom*.
+A quote is different. In the real world, a quote is almost certainly a shared document: a PDF, a formal letter, an email with attached pricing, or a portal-generated summary. It carries your organization's name, a price, a delivery commitment, and an implied promise. Once sent, it creates expectations. Once accepted, it becomes the contractual foundation of the order.
 
-The Tier I quote table captured the basics: price, delivery date, and a link to the estimate. That was sufficient for tracking what was agreed. It is not sufficient for understanding *how* you got there.
+---
+
+## Data and Artifacts: The Distinction That Matters
+
+The quote introduces a concept that will recur throughout this textbook: the difference between **data** and **artifacts**.
+
+**Data** is the structured record your organization owns, secures, and controls. It lives in your database. It is referenced by other records, joined in queries, and governed by your access policies. The quote record in your schema — with its fields, foreign keys, and version history — is data.
+
+**An artifact** is the presentation of that data, formatted for a specific audience and purpose. A quote document sent to a customer is an artifact. It is derived from the data, but it is not the data itself. It is a snapshot — a rendered view at a point in time, shaped for external consumption.
+
+This distinction matters for several reasons:
+
+- **The data outlives the artifact.** A quote PDF may be deleted, lost, or never saved. The data record persists, traceable and auditable. This is why the schema must capture everything of operational value — not assume the document will always be available.
+- **The artifact is shaped for its audience.** A quote document shows the customer price, the delivery date, and the item descriptions they need to make a decision. It does not show your internal cost, your margin targets, or your alert flags. The same underlying data produces different artifacts for different audiences.
+- **Data is owned; artifacts are shared.** Your organization controls the schema, the access rules, and the version history. What the customer receives is a controlled release of selected information — not access to the record itself.
+
+The estimate existed entirely in the internal sphere. The quote crosses the boundary. From this point forward in the journey — quote, order, delivery, response — every record has a potential external representation. The discipline of separating what is stored from what is shared is what keeps that boundary intact.
 
 ---
 
 ## The Data Gap
 
-With the current Tier I quote schema, six questions remain unanswerable:
+With the Tier I `quote` table, here are the questions you cannot answer:
 
-1. **How many revisions did this quote go through before acceptance?** — There is no version history; each update overwrites the previous record.
-2. **What changed between quote versions?** — Without versioning, there is no baseline to compare against.
-3. **Who approved this quote before it was sent?** — Approval is untracked; any quote can be sent without authorization.
-4. **How many active quotes have passed their validity date?** — There is no expiry field or action recorded.
-5. **How long does it typically take customers to respond to a quote?** — Sent date and response date are not captured.
-6. **Which approver has the highest conversion rate?** — Approver data does not exist.
+- How many revisions did this quote go through before acceptance?
+- What changed between quote versions?
+- Who approved this quote before it was sent?
+- How many active quotes have passed their validity date?
+- How long does it typically take customers to respond to a quote?
+- Which approver has the highest conversion rate?
 
-Each of these gaps is operationally expensive. Unanswered revision history obscures negotiation patterns. Missing expiry tracking leads to outdated quotes being referenced in deals. No approval record means no audit trail.
+Each of these gaps is operationally expensive. Missing revision history obscures negotiation patterns. Absent expiry tracking lets outdated quotes linger in open pipelines. No approval record means no audit trail between the estimate and the document delivered to the customer.
 
 ---
 
@@ -35,14 +57,14 @@ In practice, quotes are rarely accepted on the first draft. Pricing gets negotia
 
 The solution is a **self-referencing parent key** — the same pattern introduced for account hierarchy in Chapter 1.
 
-A new column `quot_parent_id` references `quot_id` in the same table. The original quote has no parent (`NULL`). Each revision points back to the quote it superseded.
+A new column `qte_parent_id` references `qte_id` in the same table. The original quote has no parent (`NULL`). Each revision points back to the quote it superseded.
 
-A companion integer column `quot_version` makes the sequence explicit: version 1 is the original, version 2 is the first revision, and so on. The active quote is always the highest version number within a `quot_parent_id` group.
+A companion integer column `qte_version` makes the sequence explicit: version 1 is the original, version 2 is the first revision, and so on. The active quote is always the highest version number within a `qte_parent_id` group.
 
-| Column Name | Attribute Name | Key Type | Tier | Notes |
-|---|---|---|---|---|
-| quot_parent_id | Parent Quote ID | FK → quote.quot_id | II | NULL on original; points to prior version on revisions |
-| quot_version | Quote Version | — | II | Integer; 1 = original, increment per revision |
+| Tier | Column Name | Attribute Name | Notes |
+|------|-------------|----------------|-------|
+| II | `qte_parent_id` | Parent Quote ID | FK → `quote.qte_id`; NULL on original; points to prior version on revisions |
+| II | `qte_version` | Quote Version | Integer; 1 = original, increment per revision |
 
 **Why this matters:** When a deal closes, you can now trace the full revision history — how many versions it took, what changed at each step, and whether the final price was above or below the initial offer. This is the negotiation audit trail that every sales manager wants but almost no one has captured cleanly.
 
@@ -52,21 +74,21 @@ A companion integer column `quot_version` makes the sequence explicit: version 1
 
 ### Authorization Before Delivery
 
-Not every quote should go out the door without review. Discounts beyond a threshold, unusually long payment terms, or delivery commitments that stretch capacity all warrant a second set of eyes. Approval workflows formalize this.
+Not every quote should leave your organization without a second set of eyes. Discounts beyond a threshold, unusually long payment terms, or delivery commitments that stretch capacity all warrant review. Approval workflows formalize this gatekeeping in the data.
 
-Two paired fields capture the complete approval record:
+Three fields capture the complete approval record:
 
-| Column Name | Attribute Name | Key Type | Tier | Notes |
-|---|---|---|---|---|
-| quot_prepared_by | Prepared By | FK → user.user_id | II | Who built the quote |
-| quot_approved_by | Approved By | FK → user.user_id | II | Who authorized it for delivery; NULL if not yet approved |
-| quot_approved_date | Approval Date | — | II | Date approval was granted; NULL if pending |
+| Tier | Column Name | Attribute Name | Notes |
+|------|-------------|----------------|-------|
+| II | `qte_prepared_by` | Prepared By | FK → `user.user_id`; who built the quote |
+| II | `qte_approved_by` | Approved By | FK → `user.user_id`; who authorized it for delivery; NULL if not yet approved |
+| II | `qte_approved_date` | Approval Date | Date approval was granted; NULL if pending |
 
-Both approval fields reference the `user` table introduced in Chapter 3 — the same table that anchors `req_owner` and `est_prepared_by`. The user table is doing its job: consolidating identity and role across all records in the journey.
+Both ownership fields reference the `user` table introduced in Chapter 3 — the same table anchoring `req_owner` and `est_prepared_by`. The user table continues to do its job: providing a single, consistent identity reference across every step in the journey.
 
-**The diagnostic signal:** A quote with `quot_approved_by` populated but `quot_approved_date` as NULL is a data quality flag — the record suggests someone approved it but no date was logged. A query targeting this pattern surfaces either a process gap (approvals happening verbally) or a data entry issue (the date field being skipped).
+**The diagnostic signal:** A quote with `qte_approved_by` populated but `qte_approved_date` as NULL is a data quality flag — it suggests someone was recorded as the approver but no date was logged. A query targeting this pattern surfaces either a process gap (approvals happening verbally without documentation) or a data entry issue.
 
-**The analytical payoff:** Once both fields are consistently populated, you can compare conversion rates by approver. If quotes approved by one manager convert at 60% and quotes approved by another convert at 35%, that is a coaching signal — or a pricing strategy signal — worth investigating.
+**The analytical payoff:** Once both fields are consistently populated, you can compare conversion rates by approver. If quotes approved by one manager convert at 60% and another at 35%, that is a coaching signal — or a pricing strategy signal — worth investigating.
 
 ---
 
@@ -78,16 +100,29 @@ Quotes have a shelf life. Costs change. Supplier pricing fluctuates. Capacity fi
 
 Two fields address this:
 
-| Column Name | Attribute Name | Key Type | Tier | Notes |
-|---|---|---|---|---|
-| quot_valid_until | Valid Until Date | — | II | The date the quote is no longer actionable without reissue |
-| quot_expiry_action | Expiry Action | — | II | Structured field: Renewed, Cancelled, Expired-No-Action, Superseded |
+| Tier | Column Name | Attribute Name | Notes |
+|------|-------------|----------------|-------|
+| II | `qte_valid_until` | Valid Until Date | The date the quote is no longer actionable without reissue |
+| II | `qte_expiry_action` | Expiry Action | Controlled vocabulary: Renewed, Cancelled, Expired-No-Action, Superseded |
 
-`quot_valid_until` is the operational anchor. A daily query filtering for quotes where `quot_valid_until < CURRENT_DATE` and status is still open produces the action list for the day.
+`qte_valid_until` is the operational anchor. A daily query filtering for quotes where `qte_valid_until < CURRENT_DATE` and no expiry action has been recorded produces the action list for the day.
 
-`quot_expiry_action` is the disposition record. Rather than leaving expired quotes to accumulate ambiguously in the system, this field captures what actually happened: was the quote renewed with updated pricing? Cancelled by the customer? Did it simply expire with no follow-up? Or was it superseded by a revision?
+`qte_expiry_action` is the disposition record. Rather than letting expired quotes accumulate ambiguously, this field captures what actually happened: was the quote renewed with updated pricing? Cancelled by the customer? Did it simply expire with no follow-up? Or was it superseded by a revision?
 
-**Why a structured field matters here:** Free-text notes fields decay into illegibility over time. A structured `quot_expiry_action` with a controlled vocabulary allows you to query — "how many quotes expired with no action in Q2?" — and act on the answer.
+**Why a structured field matters here:** Free-text notes decay into illegibility over time. A structured `qte_expiry_action` with a controlled vocabulary makes the question *"how many quotes expired with no action in Q2?"* answerable with a single WHERE clause.
+
+---
+
+## Tracking the Conversation: Sent and Response Dates
+
+The quote artifact travels from your organization to the customer. Capturing when it was sent — and when the customer responded — closes the loop on one of the most operationally valuable timing metrics in the sales process: **quote response time**.
+
+| Tier | Column Name | Attribute Name | Notes |
+|------|-------------|----------------|-------|
+| II | `qte_sent_date` | Sent Date | Date the quote was delivered to the customer |
+| II | `qte_response_date` | Response Date | Date the customer replied (accepted, rejected, or countered) |
+
+The gap between these two dates is the customer's decision window. Patterns in that window — by customer type, by approver, by quote value — inform follow-up cadence and pipeline forecasting.
 
 ---
 
@@ -95,81 +130,83 @@ Two fields address this:
 
 The quote does not exist in isolation. It is the externalization of the internal estimate — and the relationship between them is worth tracking explicitly.
 
-A direct foreign key `quot_est_id` links the quote to the estimate it was built from. This enables the **price integrity check**: did the quote price accurately reflect the estimated cost and margin?
+A direct foreign key `qte_est_id` links the quote to the estimate it was built from. This enables the **price integrity check**: did the quote accurately reflect the estimated cost and margin?
 
-| Column Name | Attribute Name | Key Type | Tier | Notes |
-|---|---|---|---|---|
-| quot_est_id | Estimate ID | FK → estimate.est_id | II | The estimate this quote was derived from |
+| Tier | Column Name | Attribute Name | Notes |
+|------|-------------|----------------|-------|
+| II | `qte_est_id` | Estimate ID | FK → `estimate.est_id`; the estimate this quote was derived from |
 
-With this link in place, a query comparing `qte_price` to `est_price` across all quotes will surface the delta — how often quotes went out at prices above or below the estimate, and by how much. Patterns of systematic underquoting relative to estimates are a margin erosion signal that is invisible without this join.
+With this link in place, a query comparing `qte_price` to `est_price` across all quotes will surface the delta — how often quotes went out above or below the estimate, and by how much. Patterns of systematic underquoting relative to estimates are a margin erosion signal that is invisible without this join.
 
 ---
 
 ## Quote Lines
 
-Just as the estimate introduced `estimate_line` to capture item-level detail, the quote introduces a parallel `quote_line` table. The difference is audience: estimate lines hold internal cost logic; quote lines hold the customer-facing representation of the same items.
+Just as the estimate introduced `estimate_line` to capture item-level cost detail, the quote introduces a parallel `quote_line` table. The distinction is audience: estimate lines hold internal cost logic; quote lines hold the customer-facing representation of the same items.
 
-**quote_line table:**
+This is the artifact boundary applied at the line level. The customer sees descriptions, quantities, and prices. They do not see the underlying cost, margin calculations, or SKU catalog entries that informed those numbers.
 
-| Column Name | Attribute Name | Key Type | Tier | Notes |
-|---|---|---|---|---|
-| qln_id | Quote Line ID | PK | II | Primary key |
-| quot_id | Quote ID | FK → quote.quot_id | II | Parent quote |
-| eln_id | Estimate Line ID | FK → estimate_line.eln_id | II | The estimate line this quote line corresponds to |
-| qln_description | Line Description | — | II | Customer-facing description of the item or service |
-| qln_quantity | Quantity | — | II | Quoted quantity |
-| qln_unit_price | Unit Price | — | II | Price per unit as presented to the customer |
-| qln_line_total | Line Total | — | II | Calculated: qln_quantity × qln_unit_price |
+**`quote_line` table:**
 
-The link to `eln_id` is important — it connects each quote line back to the estimate line it was priced from. This allows a line-level price-to-cost comparison, not just a header-level one.
+| Tier | Column Name | Attribute Name | Notes |
+|------|-------------|----------------|-------|
+| II | `qte_ln_id` | Quote Line ID | Primary key |
+| II | `qte_id` | Quote ID | FK → `quote.qte_id` |
+| II | `est_line_id` | Estimate Line ID | FK → `estimate_line.est_line_id`; the estimate line this quote line corresponds to |
+| II | `qte_ln_description` | Line Description | Customer-facing description of the item or service |
+| II | `qte_ln_qty` | Quantity | Quoted quantity |
+| II | `qte_ln_unit_price` | Unit Price | Price per unit as presented to the customer |
+| II | `qte_ln_total` | Line Total | Calculated: `qte_ln_qty` × `qte_ln_unit_price` |
+
+The link to `est_line_id` is structurally important — it connects each quote line back to the estimate line it was priced from, enabling line-level price-to-cost comparison rather than just a header-level delta.
 
 ---
 
 ## Tier II Schema Additions: Quote
 
-The complete set of Tier II additions to the `quote` table:
+Complete set of Tier II additions to the `quote` table:
 
-| Column Name | Attribute Name | Key Type | Tier | Notes |
-|---|---|---|---|---|
-| quot_est_id | Estimate ID | FK → estimate.est_id | II | Estimate this quote was derived from |
-| quot_parent_id | Parent Quote ID | FK → quote.quot_id | II | NULL on original; prior version on revisions |
-| quot_version | Quote Version | — | II | Integer; 1 = original |
-| quot_prepared_by | Prepared By | FK → user.user_id | II | Who built the quote |
-| quot_approved_by | Approved By | FK → user.user_id | II | Who authorized it |
-| quot_approved_date | Approval Date | — | II | Date of approval |
-| quot_sent_date | Sent Date | — | II | Date delivered to the customer |
-| quot_response_date | Response Date | — | II | Date customer replied (accepted, rejected, or countered) |
-| quot_valid_until | Valid Until Date | — | II | Expiry date |
-| quot_expiry_action | Expiry Action | — | II | Renewed, Cancelled, Expired-No-Action, Superseded |
+| Tier | Column Name | Attribute Name | Notes |
+|------|-------------|----------------|-------|
+| II | `qte_est_id` | Estimate ID | FK → `estimate.est_id`; estimate this quote was derived from |
+| II | `qte_parent_id` | Parent Quote ID | FK → `quote.qte_id`; NULL on original; prior version on revisions |
+| II | `qte_version` | Quote Version | Integer; 1 = original |
+| II | `qte_prepared_by` | Prepared By | FK → `user.user_id`; who built the quote |
+| II | `qte_approved_by` | Approved By | FK → `user.user_id`; who authorized it |
+| II | `qte_approved_date` | Approval Date | Date of approval |
+| II | `qte_sent_date` | Sent Date | Date delivered to the customer |
+| II | `qte_response_date` | Response Date | Date customer replied |
+| II | `qte_valid_until` | Valid Until Date | Expiry date |
+| II | `qte_expiry_action` | Expiry Action | Renewed, Cancelled, Expired-No-Action, Superseded |
 
 ---
 
 ## Analytical Application
 
-### SQL Example 1: Expired Quotes Without a Closed Status
+### Expired Quotes Without a Closed Status
 *The daily operations query — what needs attention today.*
 
 ```sql
 SELECT
-    q.quot_id,
-    q.quot_version,
+    q.qte_id,
+    q.qte_version,
     c.cust_name,
     q.qte_price,
-    q.quot_valid_until,
-    u.name AS prepared_by
+    q.qte_valid_until,
+    u.user_first_name || ' ' || u.user_last_name AS prepared_by
 FROM quote q
 JOIN customer c ON q.cust_id = c.cust_id
-JOIN user u ON q.quot_prepared_by = u.user_id
-WHERE q.quot_valid_until < CURRENT_DATE
-  AND q.quot_expiry_action IS NULL
-ORDER BY q.quot_valid_until ASC;
+JOIN "user" u ON q.qte_prepared_by = u.user_id
+WHERE q.qte_valid_until < CURRENT_DATE
+  AND q.qte_expiry_action IS NULL
+ORDER BY q.qte_valid_until ASC;
 ```
 
 This surfaces every quote that has silently aged past its validity window with no recorded disposition. Each row is a follow-up action — renew, cancel, or log the outcome.
 
 ---
 
-### SQL Example 2: Average Revisions Before Acceptance
+### Average Revisions Before Acceptance
 *How long does it typically take to get to yes?*
 
 ```sql
@@ -179,12 +216,11 @@ SELECT
 FROM (
     SELECT
         q.cust_id,
-        q.quot_parent_id,
-        COUNT(q.quot_id) AS version_count
+        COALESCE(q.qte_parent_id, q.qte_id) AS quote_group,
+        COUNT(q.qte_id) AS version_count
     FROM quote q
-    WHERE q.quot_expiry_action = 'Accepted'
-       OR q.quot_id IN (SELECT qte_id FROM "order")
-    GROUP BY q.cust_id, COALESCE(q.quot_parent_id, q.quot_id)
+    WHERE q.qte_id IN (SELECT qte_id FROM "order")
+    GROUP BY q.cust_id, COALESCE(q.qte_parent_id, q.qte_id)
 ) revision_counts
 JOIN customer c ON revision_counts.cust_id = c.cust_id
 GROUP BY c.cust_type
@@ -195,7 +231,7 @@ Customer types requiring more revisions signal either misaligned initial pricing
 
 ---
 
-### SQL Example 3: Quoted vs. Estimated Price Delta by Customer Tier
+### Quoted vs. Estimated Price Delta by Customer Tier
 *Did the quote reflect what the estimate projected?*
 
 ```sql
@@ -205,31 +241,33 @@ SELECT
     ROUND(AVG(q.qte_price - e.est_price), 2) AS avg_price_delta,
     ROUND(AVG((q.qte_price - e.est_price) / NULLIF(e.est_price, 0) * 100), 2) AS avg_pct_delta
 FROM quote q
-JOIN estimate e ON q.quot_est_id = e.est_id
+JOIN estimate e ON q.qte_est_id = e.est_id
 JOIN customer c ON q.cust_id = c.cust_id
-WHERE q.quot_version = 1
+WHERE q.qte_version = 1
 GROUP BY c.cust_type
 ORDER BY avg_pct_delta ASC;
 ```
 
-A negative `avg_price_delta` means quotes are going out below estimate — margin is being given away at the quote stage. Filtering to `quot_version = 1` isolates the original offer before any negotiation revision.
+A negative `avg_price_delta` means quotes are going out below estimate — margin is being given away at the quote stage. Filtering to `qte_version = 1` isolates the original offer before any negotiation revision.
 
 ---
 
-### SQL Example 4: Conversion Rate by Approver
+### Conversion Rate by Approver
 *Which approvers are sending out winning quotes?*
 
 ```sql
 SELECT
-    u.name AS approver,
-    COUNT(q.quot_id) AS quotes_approved,
-    COUNT(o.ord_id) AS quotes_converted,
-    ROUND(COUNT(o.ord_id)::decimal / NULLIF(COUNT(q.quot_id), 0) * 100, 1) AS conversion_rate_pct
+    u.user_first_name || ' ' || u.user_last_name AS approver,
+    COUNT(q.qte_id)                               AS quotes_approved,
+    COUNT(o.ord_id)                               AS quotes_converted,
+    ROUND(
+        COUNT(o.ord_id)::decimal / NULLIF(COUNT(q.qte_id), 0) * 100, 1
+    )                                             AS conversion_rate_pct
 FROM quote q
-JOIN user u ON q.quot_approved_by = u.user_id
-LEFT JOIN "order" o ON q.quot_id = o.qte_id
-WHERE q.quot_approved_by IS NOT NULL
-GROUP BY u.name
+JOIN "user" u ON q.qte_approved_by = u.user_id
+LEFT JOIN "order" o ON q.qte_id = o.qte_id
+WHERE q.qte_approved_by IS NOT NULL
+GROUP BY u.user_id, u.user_first_name, u.user_last_name
 ORDER BY conversion_rate_pct DESC;
 ```
 
@@ -237,25 +275,25 @@ Conversion rate by approver reveals pricing culture: approvers who consistently 
 
 ---
 
-### SQL Example 5: Days from Quote Sent to Customer Response by Customer Tier
+### Days from Quote Sent to Customer Response by Customer Tier
 *How long do different customer types take to decide?*
 
 ```sql
 SELECT
     c.cust_type,
-    COUNT(*) AS responded_quotes,
-    ROUND(AVG(q.quot_response_date - q.quot_sent_date), 1) AS avg_days_to_response,
-    MIN(q.quot_response_date - q.quot_sent_date) AS fastest_response,
-    MAX(q.quot_response_date - q.quot_sent_date) AS slowest_response
+    COUNT(*)                                                        AS responded_quotes,
+    ROUND(AVG(q.qte_response_date - q.qte_sent_date), 1)          AS avg_days_to_response,
+    MIN(q.qte_response_date - q.qte_sent_date)                     AS fastest_response,
+    MAX(q.qte_response_date - q.qte_sent_date)                     AS slowest_response
 FROM quote q
 JOIN customer c ON q.cust_id = c.cust_id
-WHERE q.quot_sent_date IS NOT NULL
-  AND q.quot_response_date IS NOT NULL
+WHERE q.qte_sent_date IS NOT NULL
+  AND q.qte_response_date IS NOT NULL
 GROUP BY c.cust_type
 ORDER BY avg_days_to_response ASC;
 ```
 
-Response time by customer tier informs follow-up cadence. If Reseller accounts typically respond in 3 days but Direct accounts take 12, the follow-up playbook should differ accordingly.
+Response time by customer tier informs follow-up cadence. If Reseller accounts typically respond in 3 days but Direct accounts take 12, the follow-up playbook should reflect that difference.
 
 ---
 
@@ -263,12 +301,14 @@ Response time by customer tier informs follow-up cadence. If Reseller accounts t
 
 1. In your current process, how many versions does a typical quote go through before it is accepted or rejected? Is that number tracked anywhere today?
 
-2. Who has the authority to approve a quote in your organization? Is there a formal threshold (price, margin, delivery timeline) that triggers an approval requirement — or is it informal?
+2. Think about the last time a quote went out the door and the customer came back with a counteroffer. What changed? Was that change captured anywhere in your data — or did it live only in an email thread?
 
-3. Think about a quote that expired without a clear outcome in the last 12 months. What actually happened to that deal? What would you need in your data to answer that question reliably?
+3. Who in your organization has the authority to approve a quote? Is there a formal threshold — price, margin, delivery timeline — that triggers a review, or is the process informal? What would a structured approval record tell you that you cannot see today?
 
-4. If you could ask one question about your quoting process that you currently cannot answer with your data, what would it be? Describe the fields you would need to capture to answer it.
+4. Consider the difference between the quote document your customer receives and the quote record in your system. What information does the document contain that the record does not — and vice versa? What belongs in the data that should never appear on the customer-facing artifact?
+
+5. How many quotes in your current pipeline have passed their stated validity date without a recorded outcome? What would it mean for your pipeline accuracy if you could answer that question with a single query?
 
 ---
 
-*Next: Chapter 5 — Managing the Order. The quote has been accepted. Now the operational reality begins: order lines, quantities, scheduling, and the first encounter with partial fulfillment.*
+**[← Chapter 3: Estimating with Confidence](03-estimating-with-confidence.md)** | **[Next Chapter → Chapter 5: Managing the Order](05-managing-the-order.md)**
