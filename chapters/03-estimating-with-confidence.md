@@ -91,6 +91,10 @@ The `user` table serves three purposes that extend well beyond the estimate:
 
 1. **Consolidation of roles** — A user's role — estimator, sales rep, operations manager, approver — is stored once and referenced wherever that person appears in the schema. When a user's role changes, one record updates and the change is reflected everywhere.
 
+   One important caveat: because every record in the schema points to the *current* state of the user record, a role change is immediately reflected across all historical records. If Maria was an Admin when she created an order, and later became an Executive, that same order will now report as having been created by an Executive — because that is what her user record says today. For most organizations, this is acceptable. The goal is operational reporting, not historical role reconstruction.
+
+   Historical attribution — preserving the role a user held *at the time* a record was created — is possible and not particularly complicated, but it is outside the scope of this textbook. It involves techniques like temporal tables, role audit logs, or snapshotting user state at the time of record creation. If your organization operates in a regulated environment or requires litigation-grade audit trails, see the *Addendum: What If Practices* at the end of this textbook for a brief on the available approaches.
+
 2. **Consistent ownership across tables** — The `req_owner` field introduced in Chapter 2, the `est_prepared_by` field in this chapter, and every future ownership or assignment field in the schema will all reference the same `user` table. This means you can ask cross-table questions: *which users have the most open requests AND the most pending estimates?*
 
 3. **Future security access** — In Phase II, when this schema is implemented in a live database, the `user` table becomes the anchor for row-level security, permission scoping, and audit logging. The groundwork laid here — a clean, normalized user record — makes that implementation straightforward rather than retrofitted.
