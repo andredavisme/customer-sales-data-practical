@@ -84,7 +84,7 @@ One of the most common sources of confusion in order management data is the conf
 
 | Date | Meaning | Who Sets It |
 |------|---------|-------------|
-| Customer-requested date | When the customer wants delivery | Customer, at request or quote stage |
+| Customer-requested date | When the customer wants delivery | Customer, at the time of the original request |
 | Promised date | What your organization committed to in the quote | Sales or quoting team |
 | Operational target date | The internal working date based on actual capacity and scheduling | Operations |
 
@@ -92,17 +92,24 @@ The Tier I `ord_exp_date` field collapses all three into one. That works as long
 
 A customer might request delivery by the 15th. The quote promises the 18th because of lead time. Operations schedules for the 17th to build in buffer. Three dates, three stakeholders, three legitimate views of the same event. A single field cannot represent all three without overwriting one with another.
 
-Tier II adds the scheduling structure to separate them:
+### The Requested Date Lives in the Request
+
+The customer-requested delivery date is not a new piece of information — it was captured at the very beginning of the journey. The `request` table, introduced in the Introduction and present since Tier I, is where the customer first expressed *what they need and when they need it*. That date belongs there, not duplicated on the order.
+
+This is the data lineage principle in action. The order already carries `req_id` as a foreign key — a direct link back to the originating request. Rather than storing `ord_requested_date` as a separate field on the order, the requested date is retrieved by joining to the `request` table through that existing key. No new column is needed; the information is already in the chain.
+
+The two dates that *are* new at the order stage — because they did not exist until the quote was accepted and operations engaged — are the promised date and the scheduled date:
 
 | Tier | Column Name | Attribute Name | Notes |
 |------|-------------|----------------|-------|
-| II | `ord_requested_date` | Customer Requested Date | The date the customer specified at request or quote stage |
-| II | `ord_promised_date` | Promised Delivery Date | The date committed to in the accepted quote; linked to `qte_shipment_date` |
+| II | `ord_promised_date` | Promised Delivery Date | The date committed to in the accepted quote; sourced from `qte_shipment_date` |
 | II | `ord_scheduled_date` | Scheduled Delivery Date | Internal operational target; set by scheduling or operations |
 
-*Note: `ord_exp_date` from Tier I is superseded by these three fields in Tier II. The expected date becomes the scheduled date — the one operations actually works to.*
+*Note: `ord_exp_date` from Tier I is superseded by these two fields in Tier II. The requested date is accessed via `req_id → request`. The three-date view is assembled by joining all three sources.*
 
-With all three dates in the schema, you can now answer questions that were previously invisible: How often does the promised date slip between quote acceptance and scheduling? How often do customers request dates that operations cannot meet? What is the average gap between promised and scheduled dates by product category or customer tier?
+With all three dates accessible in the schema, you can answer questions that were previously invisible: How often does the promised date slip between quote acceptance and scheduling? How often do customers request dates that operations cannot meet? What is the average gap between the original request date and the final scheduled date by customer tier?
+
+The SQL example in the Analytical Application section demonstrates how to assemble all three dates from their respective source tables in a single query.
 
 ---
 
@@ -127,7 +134,23 @@ Two fields on the `order` table support this aggregate view:
 | III | `ord_status` | Order Status | Controlled vocabulary: Open, Partial, Fulfilled, Cancelled, On Hold |
 | III | `ord_fulfilled_date` | Fulfilled Date | Date the final line item was fulfilled; NULL until order is complete |
 
-The relationship between `ord_ln_status` and `ord_status` is not automatic — it requires either a trigger, a scheduled update process, or an application layer that updates the header when line states change. That implementation detail belongs to Phase II. What matters in the schema is that both levels of status exist and are consistently maintained.
+### Schema vs. Database Functions
+
+The schema defines *what* data exists and *how it is structured*. It does not define *how that data is maintained*. These are separate concerns — and understanding the difference is one of the most practical distinctions in database design.
+
+Consider `ord_status`. The schema says it exists, what values it can hold, and what it means. But the schema does not answer: *who updates it, and when?* Left to manual data entry, `ord_status` becomes unreliable — operators forget to update it, update it inconsistently, or update the header without touching the lines.
+
+This is where **database functions** close the gap. A database function — or more specifically, a **trigger** — is a piece of logic that executes automatically in response to a data event. Rather than relying on a person or an application to remember to update `ord_status` whenever a line changes, a trigger can watch the `order_line` table and update the parent `order` record automatically:
+
+- When the first `ord_ln_status` changes to `Partial` or `Fulfilled`, set `ord_status = 'Partial'`
+- When all `ord_ln_status` values equal `Fulfilled`, set `ord_status = 'Fulfilled'` and stamp `ord_fulfilled_date = CURRENT_DATE`
+- When any `ord_ln_status` is set to `Back-Ordered`, the order header can be flagged accordingly
+
+Similarly, `ord_ln_total` — defined as `ord_ln_qty_ordered × ord_ln_unit_price` — is a **computed field**. Rather than storing a value that must be manually kept in sync with its inputs, a database function can calculate it on write or on read, guaranteeing it is always accurate.
+
+Neither triggers nor computed fields change the schema. They are *implementations* of the schema — the database enforcing the rules that the schema describes. The schema tells you what data should look like when it is correct. Functions and triggers are the mechanisms that keep it correct without depending on human consistency.
+
+This textbook defines the schema. The database implementation — including triggers, functions, constraints, and computed columns — is built in Phase II. What matters here is recognizing that every field marked as "updated as deliveries occur" or "calculated" in the schema tables is a candidate for automation in the database layer. The schema is the specification; the database is the enforcement.
 
 ---
 
@@ -137,11 +160,12 @@ Complete set of Tier II and III additions to the `order` table:
 
 | Tier | Column Name | Attribute Name | Notes |
 |------|-------------|----------------|-------|
-| II | `ord_requested_date` | Customer Requested Date | Date the customer specified |
-| II | `ord_promised_date` | Promised Delivery Date | Date committed in the accepted quote |
-| II | `ord_scheduled_date` | Scheduled Delivery Date | Internal operational target |
-| III | `ord_status` | Order Status | Open, Partial, Fulfilled, Cancelled, On Hold |
-| III | `ord_fulfilled_date` | Fulfilled Date | Date the final line was fulfilled; NULL until complete |
+| II | `ord_promised_date` | Promised Delivery Date | Date committed in the accepted quote; sourced from `qte_shipment_date` |
+| II | `ord_scheduled_date` | Scheduled Delivery Date | Internal operational target; set by operations |
+| III | `ord_status` | Order Status | Open, Partial, Fulfilled, Cancelled, On Hold; maintained by trigger in Phase II |
+| III | `ord_fulfilled_date` | Fulfilled Date | Date the final line was fulfilled; NULL until complete; stamped by trigger in Phase II |
+
+*Note: The customer-requested date is accessed via `req_id → request` and does not require a separate column on the order.*
 
 ---
 
@@ -157,18 +181,43 @@ SELECT
     o.ord_promised_date,
     o.ord_scheduled_date,
     o.ord_status,
-    COUNT(ol.ord_ln_id)                                        AS total_lines,
-    COUNT(CASE WHEN ol.ord_ln_status = 'Fulfilled' THEN 1 END) AS fulfilled_lines,
+    COUNT(ol.ord_ln_id)                                            AS total_lines,
+    COUNT(CASE WHEN ol.ord_ln_status = 'Fulfilled'    THEN 1 END) AS fulfilled_lines,
     COUNT(CASE WHEN ol.ord_ln_status = 'Back-Ordered' THEN 1 END) AS backordered_lines
 FROM "order" o
-JOIN customer c ON o.cust_id = c.cust_id
-JOIN order_line ol ON o.ord_id = ol.ord_id
+JOIN customer c    ON o.cust_id = c.cust_id
+JOIN order_line ol ON o.ord_id  = ol.ord_id
 WHERE o.ord_status IN ('Open', 'Partial')
 GROUP BY o.ord_id, c.cust_name, o.ord_promised_date, o.ord_scheduled_date, o.ord_status
 ORDER BY o.ord_promised_date ASC;
 ```
 
 This is the operations team's daily view: every active order, how many lines are fulfilled versus outstanding, and which ones have back-ordered items that may jeopardize the promised date.
+
+---
+
+### Three-Date View: Request, Promise, Schedule
+*Assembling the full scheduling picture from its source tables.*
+
+```sql
+SELECT
+    o.ord_id,
+    c.cust_name,
+    r.req_delivery_date                                          AS customer_requested_date,
+    o.ord_promised_date,
+    o.ord_scheduled_date,
+    o.ord_promised_date  - r.req_delivery_date                   AS promise_gap_days,
+    o.ord_scheduled_date - o.ord_promised_date                   AS schedule_slip_days
+FROM "order" o
+JOIN customer c ON o.cust_id = c.cust_id
+JOIN request  r ON o.req_id  = r.req_id
+WHERE r.req_delivery_date IS NOT NULL
+  AND o.ord_promised_date  IS NOT NULL
+  AND o.ord_scheduled_date IS NOT NULL
+ORDER BY promise_gap_days DESC;
+```
+
+This query joins across three source tables to assemble all three dates in one row — demonstrating how the foreign key chain (`ord_id → req_id → request`) makes the requested date accessible without storing it redundantly on the order.
 
 ---
 
@@ -185,7 +234,7 @@ SELECT
 FROM "order" o
 JOIN customer c ON o.cust_id = c.cust_id
 WHERE o.ord_scheduled_date IS NOT NULL
-  AND o.ord_promised_date IS NOT NULL
+  AND o.ord_promised_date  IS NOT NULL
 GROUP BY c.cust_type
 ORDER BY avg_schedule_slip_days DESC;
 ```
@@ -201,8 +250,8 @@ A consistently positive `avg_schedule_slip_days` means the organization routinel
 SELECT
     s.sku_code,
     s.sku_name,
-    COUNT(ol.ord_ln_id)                                               AS total_order_lines,
-    COUNT(CASE WHEN ol.ord_ln_status = 'Partial' THEN 1 END)          AS partial_lines,
+    COUNT(ol.ord_ln_id)                                                AS total_order_lines,
+    COUNT(CASE WHEN ol.ord_ln_status = 'Partial'      THEN 1 END)     AS partial_lines,
     COUNT(CASE WHEN ol.ord_ln_status = 'Back-Ordered' THEN 1 END)     AS backordered_lines,
     ROUND(
         (COUNT(CASE WHEN ol.ord_ln_status IN ('Partial','Back-Ordered') THEN 1 END))::decimal
@@ -218,28 +267,6 @@ SKUs with high incomplete rates are supply chain signals — chronic back-orders
 
 ---
 
-### Customer-Requested vs. Promised Date Gap
-*How often are customers told they cannot have what they asked for, and by how much?*
-
-```sql
-SELECT
-    c.cust_type,
-    COUNT(o.ord_id)                                                            AS order_count,
-    ROUND(AVG(o.ord_promised_date - o.ord_requested_date), 1)                 AS avg_gap_days,
-    COUNT(CASE WHEN o.ord_promised_date > o.ord_requested_date THEN 1 END)    AS requests_not_met,
-    COUNT(CASE WHEN o.ord_promised_date <= o.ord_requested_date THEN 1 END)   AS requests_met_or_early
-FROM "order" o
-JOIN customer c ON o.cust_id = c.cust_id
-WHERE o.ord_requested_date IS NOT NULL
-  AND o.ord_promised_date IS NOT NULL
-GROUP BY c.cust_type
-ORDER BY avg_gap_days DESC;
-```
-
-This measures the gap between what customers ask for and what they are promised. A large, consistent gap by customer type suggests either unrealistic customer expectations or a quoting team that does not consult capacity before committing dates.
-
----
-
 ### Order Value Variance: Quote vs. Order
 *Did anything change between the accepted quote and the confirmed order?*
 
@@ -247,15 +274,15 @@ This measures the gap between what customers ask for and what they are promised.
 SELECT
     o.ord_id,
     c.cust_name,
-    q.qte_price                             AS quoted_price,
-    o.ord_price                             AS order_price,
-    o.ord_price - q.qte_price               AS price_delta,
+    q.qte_price                          AS quoted_price,
+    o.ord_price                          AS order_price,
+    o.ord_price - q.qte_price            AS price_delta,
     ROUND(
         (o.ord_price - q.qte_price)
         / NULLIF(q.qte_price, 0) * 100, 2
-    )                                       AS delta_pct
+    )                                    AS delta_pct
 FROM "order" o
-JOIN quote q ON o.qte_id = q.qte_id
+JOIN quote    q ON o.qte_id  = q.qte_id
 JOIN customer c ON o.cust_id = c.cust_id
 WHERE o.ord_price <> q.qte_price
 ORDER BY ABS(o.ord_price - q.qte_price) DESC;
@@ -269,13 +296,13 @@ Orders that differ in price from their parent quote are an audit flag. A positiv
 
 1. Think about the most complex order your organization has fulfilled in the past year. How many distinct line items did it contain? How many deliveries did it take? Could your current data model reconstruct a complete picture of that order's fulfillment journey?
 
-2. When a customer asks for a delivery date that operations cannot meet, how is that communicated today — and where is it recorded? Is the customer's original request preserved anywhere after the promised date is set?
+2. The customer's requested delivery date lives in the request — not the order. Does your current system preserve the original customer ask after the order is confirmed? If not, what is lost when that date is overwritten by the promised or scheduled date?
 
 3. Consider a product that has been back-ordered more than once in the past six months. Is that pattern visible in your data? What would it take to surface it with a single query?
 
-4. If an order ships in three partial deliveries over three weeks, how does your current system reflect the order's status at each stage? Is there a point at which the order looks "closed" in your data before it is actually complete for the customer?
+4. If an order ships in three partial deliveries over three weeks, how does your current system reflect the order's status at each stage? At what point does the order look "closed" in your data — and does that match when the customer considers it complete?
 
-5. Look at the gap between the quote your customer accepted and the order that was entered. Are there cases where items, quantities, or prices changed at order entry without a formal quote revision? What does that tell you about the integrity of your quoting process?
+5. Think about the fields in this chapter that are described as "updated as deliveries occur" or "calculated." In your current environment, who is responsible for keeping those values current? How often are they wrong — and what would it take to make their maintenance automatic?
 
 ---
 
