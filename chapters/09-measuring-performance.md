@@ -131,7 +131,52 @@ Named, bounded reporting periods with an explicit link to the prior period for p
 | IV | per_prior_id | Prior Period ID | FK → per_id; enables period-over-period joins |
 | IV | per_is_complete | Is Complete | Boolean; incomplete periods must be flagged in dashboards |
 
-**Why this matters:** Without a period table, period-over-period comparisons require date arithmetic scattered across every query. With it, you join once and the prior period is always in the same row.
+#### The Leverage Most Architects Learn Too Late
+
+The period table looks deceptively simple — seven columns, one self-referencing key. Most data models never include it. Instead, they rely on date arithmetic: `DATEADD(month, -1, GETDATE())`, `DATE_TRUNC('month', NOW()) - INTERVAL '1 month'`, or variations that differ by database, by analyst, and by whether February has 28 or 29 days this year. That arithmetic is scattered across hundreds of queries, embedded in BI tool calculated fields, and duplicated in spreadsheet formulas that were never meant to be permanent.
+
+The cost compounds slowly and then all at once. It stays invisible until someone asks: *"Why does the sales report show Q3 revenue as $4.2M but the finance report shows $3.9M?"* The answer is almost always a boundary problem — one system counted orders placed in the quarter, another counted orders delivered, another counted orders invoiced, and none of them agreed on whether September 30th fell in Q3 or Q4 when it landed on a Sunday.
+
+A period table eliminates that class of error entirely. The boundary is defined once, in one place, by one owner. Every query, every report, and every dashboard that joins to the period table is using the same dates. There is nothing to reconcile.
+
+#### What the Self-Reference Buys You
+
+The `per_prior_id` column is where the real leverage lives. Without it, comparing this quarter to last quarter requires two separate date range calculations in every query — and both must be correct and consistent for the comparison to mean anything. With it, the prior period is always one join away:
+
+```sql
+JOIN period p ON o.ord_date BETWEEN p.per_start_date AND p.per_end_date
+LEFT JOIN period p_prior ON p.per_prior_id = p_prior.per_id
+```
+
+That pattern works for any metric, any period type, any time range — without a single hardcoded date. The query doesn't know or care whether it's running in January (where the prior month is December of the previous year), in Q1 (where the prior quarter crosses a year boundary), or in a custom fiscal period that doesn't align with calendar months at all.
+
+This matters more than it appears. Year-boundary comparisons are where ad hoc date arithmetic fails most visibly. January's prior month is December — a different year, a different quarter, potentially a different fiscal year with different budget assumptions. The `per_prior_id` link handles this without special-casing, because whoever loaded the period table set it correctly once.
+
+#### Period Types and Why You Need More Than One
+
+A single period granularity is rarely enough. Operations managers want monthly. Finance wants quarterly and annual. Leadership wants rolling 13-week trend lines that don't align with any calendar boundary. Customers want year-over-year comparisons anchored to their contract start dates.
+
+The `per_type` column supports all of these in the same table. Monthly periods have `per_prior_id` pointing to the prior month. Quarterly periods have `per_prior_id` pointing to the prior quarter. Annual periods point to the prior year. Custom periods — fiscal years, rolling windows, promotional campaign dates — are simply rows with `per_type = 'Custom'` and whatever `per_prior_id` is meaningful for that comparison.
+
+The same query pattern works across all of them. Filter by `per_type` to select the granularity; the prior period join is always the same.
+
+#### Incomplete Periods Are a Reporting Decision, Not a Data Problem
+
+Most reporting systems either show current-period data without context ("revenue this month: $1.1M" — versus what?) or suppress it entirely until the period closes. Neither is right.
+
+The `per_is_complete` flag creates a third option: show the current period with an explicit flag that the number is partial. The dashboard can display it, compare it to a prorated prior period if that's useful, or simply annotate it — but the decision is made in the presentation layer, not buried in a WHERE clause that silently excludes incomplete periods and then produces a blank dashboard on the 1st of each month.
+
+This also makes month-to-date analysis deliberate. A query that filters `WHERE per_is_complete = TRUE` is explicitly choosing to exclude the current period. A query that doesn't filter is explicitly choosing to include it. Neither is wrong — but when the filter is implicit or scattered across different reports, some reports will include the current period and some won't, and no one will know which is which until a number looks wrong in a meeting.
+
+#### The Broader Pattern: Encoding Business Knowledge in Structure
+
+The period table is an example of a broader architectural principle that separates schemas built to last from schemas built to survive: business knowledge belongs in data, not in code.
+
+Date ranges are business knowledge. The decision that Q3 runs from July 1 through September 30 — or that your fiscal year starts in October — is not a calculation. It is a fact about how your organization measures itself. When that fact lives in application code, it has to be re-implemented correctly every time a new report is built, a new analyst joins the team, or a new BI tool is connected. When it lives in a table, it is implemented once and inherited by everything that joins to it.
+
+The same principle applies to the `kpi_definition` and `kpi_snapshot` tables introduced later in this chapter. KPI definitions are business knowledge. Pre-calculated snapshots are business knowledge frozen at a point in time. Encoding both in the schema — rather than in spreadsheets, BI tool configurations, or analyst tribal knowledge — is what separates a measurement system from a collection of reports.
+
+Most architects learn this the hard way: after the third time a quarterly business review is delayed because two systems disagree on a number, or after the first time a key analyst leaves and takes the definition of "active customer" with them. The period table is a small table. The leverage it provides is not small.
 
 ---
 
