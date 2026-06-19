@@ -199,6 +199,8 @@ Complete set of Tier II additions to the `quote` table:
 | II | `qte_valid_until` | Valid Until Date | Expiry date |
 | II | `qte_expiry_action` | Expiry Action | Renewed, Cancelled, Expired-No-Action, Superseded |
 
+*Note: `qte_est_id` supersedes `est_id` from Tier I on the `quote` table. The `qte_` prefix aligns this field with the consistent naming convention applied to all quote-level attributes in Tier II.*
+
 ---
 
 ## Analytical Application
