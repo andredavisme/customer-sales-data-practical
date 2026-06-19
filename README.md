@@ -64,10 +64,10 @@ customer-sales-data-practical/
 
 ## Project Phases
 
-### Phase I — The Textbook *(current)*
+### Phase I — The Textbook *(complete)*
 Developing chapter content and the progressive schema workbook. Each chapter is a markdown file in `/chapters`. The schema workbook in `/schema` is updated alongside each chapter to reflect new Tier attributes.
 
-### Phase II — The Database
+### Phase II — The Database *(current)*
 Once the schema is finalized, the full data model will be implemented in **Supabase**. Migration files and configuration will live in `/database`.
 
 ### Phase III — The CRM Application
@@ -81,8 +81,8 @@ A homemade CRM application hosted via **GitHub Pages** will implement the concep
 
 | Phase | Status |
 |-------|--------|
-| Phase I — Textbook | 🟡 In Progress |
-| Phase II — Database | ⬜ Pending |
+| Phase I — Textbook | ✅ Complete |
+| Phase II — Database | 🟡 In Progress |
 | Phase III — CRM App | ⬜ Pending |
 
 ---
