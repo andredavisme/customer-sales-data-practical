@@ -216,7 +216,7 @@ At this early stage, having direct references at each level provides two benefit
 1. **Query simplicity** — analysts can join directly to any record without traversing multiple tables.
 2. **Audit transparency** — every record knows its complete lineage without requiring a join.
 
-As the schema matures in later tiers, some of this redundancy may be normalized out in favor of cleaner relational design. For now, clarity wins over purity.
+As the schema matures in later tiers, some of this redundancy is deliberately normalized out in favor of cleaner relational design. Chapter 4, for example, renames `est_id` on the `quote` table to `qte_est_id` to align with the `qte_` naming convention, and Chapter 5 replaces the single `ord_exp_date` field with two purpose-specific date fields — `ord_promised_date` and `ord_scheduled_date` — because a single field can no longer represent the operational reality. Each of these changes is documented with a supersession note in the relevant chapter. For now, clarity wins over purity.
 
 ---
 
