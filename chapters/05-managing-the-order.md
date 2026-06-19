@@ -48,6 +48,8 @@ The data model must support that lifecycle. It does so through two mechanisms:
 
 Together, these two mechanisms transform the order from a static confirmation record into a living operational document.
 
+One field anchors the entire order in time: **`ord_date`** — the date the order was confirmed. It is set at order entry, system-generated, and never changes. It is the reference point for every aging, cycle time, and pipeline age calculation the order will ever participate in.
+
 ---
 
 ## Introducing Order Lines
@@ -160,6 +162,7 @@ Complete set of Tier II and III additions to the `order` table:
 
 | Tier | Column Name | Attribute Name | Notes |
 |------|-------------|----------------|-------|
+| II | `ord_date` | Order Date | Timestamp when the order was confirmed; system-generated at order entry |
 | II | `ord_promised_date` | Promised Delivery Date | Date committed in the accepted quote; sourced from `qte_shipment_date` |
 | II | `ord_scheduled_date` | Scheduled Delivery Date | Internal operational target; set by operations |
 | III | `ord_status` | Order Status | Open, Partial, Fulfilled, Cancelled, On Hold; maintained by trigger in Phase II |
