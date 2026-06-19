@@ -68,6 +68,23 @@ A companion integer column `qte_version` makes the sequence explicit: version 1 
 
 **Why this matters:** When a deal closes, you can now trace the full revision history — how many versions it took, what changed at each step, and whether the final price was above or below the initial offer. This is the negotiation audit trail that every sales manager wants but almost no one has captured cleanly.
 
+### Revisions vs. Adjustments: Where Each Belongs
+
+The quote revision mechanism — `qte_parent_id` and `qte_version` — handles one specific kind of change: changes made *before the quote is accepted*. These are negotiation-stage revisions. The customer has not yet said yes. No order exists. The revision is part of the quoting process itself.
+
+The `adjustment` table, introduced in Tier I, handles a fundamentally different kind of change: changes made *after agreement has been reached*. An adjustment is a correction to something that was already operational — a committed order, a completed delivery, a fulfilled price.
+
+The boundary between them is the order. Once a quote is accepted and an order is created, the negotiation is closed. Any subsequent change to price, quantity, delivery date, or terms is no longer a quote revision — it is an adjustment against the order or delivery record.
+
+| Mechanism | Timing | Trigger | Recorded In |
+|-----------|--------|---------|-------------|
+| Quote revision (`qte_parent_id` / `qte_version`) | Pre-acceptance | Negotiation, scope change, pricing update | `quote` table — new row per version |
+| Adjustment (`adj_*`) | Post-acceptance | Price correction, date change, quantity change, credit | `adjustment` table — linked to `ord_id` or `del_id` |
+
+This separation keeps each table clean and purposeful. The `quote` table tells the story of how an agreement was reached. The `adjustment` table tells the story of how reality diverged from that agreement after the fact.
+
+A practical test: *"Has the customer said yes yet?"* If no — use a quote revision. If yes — use an adjustment.
+
 ---
 
 ## Approval Workflows
@@ -308,6 +325,8 @@ Response time by customer tier informs follow-up cadence. If Reseller accounts t
 4. Consider the difference between the quote document your customer receives and the quote record in your system. What information does the document contain that the record does not — and vice versa? What belongs in the data that should never appear on the customer-facing artifact?
 
 5. How many quotes in your current pipeline have passed their stated validity date without a recorded outcome? What would it mean for your pipeline accuracy if you could answer that question with a single query?
+
+6. Think about a change that happened after a customer accepted a quote — a price correction, a date push, a quantity change. Was that handled as a new quote version, an informal email, or something else? Now that you understand the boundary between revisions and adjustments, where would that change belong in this schema?
 
 ---
 
