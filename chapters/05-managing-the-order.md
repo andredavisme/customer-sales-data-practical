@@ -168,7 +168,7 @@ Complete set of Tier II and III additions to the `order` table:
 | III | `ord_status` | Order Status | Open, Partial, Fulfilled, Cancelled, On Hold; maintained by trigger in Phase II |
 | III | `ord_fulfilled_date` | Fulfilled Date | Date the final line was fulfilled; NULL until complete; stamped by trigger in Phase II |
 
-*Note: The customer-requested date is accessed via `req_id → request` and does not require a separate column on the order.*
+*Note: `ord_exp_date` from Tier I is superseded by `ord_promised_date` and `ord_scheduled_date` in Tier II. The customer-requested date is accessed via `req_id → request` and does not require a separate column on the order.*
 
 ---
 
