@@ -13,8 +13,6 @@ This folder contains the complete data model for the textbook as a set of cumula
 | `Schema_Tier_I_III.xlsx` | I–III | 16 | 169 | Full transactional schema incl. fulfillment, adjustments, and responses (Chapters 6–8) |
 | `Schema_Complete_Tier_I_IV_updated.xlsx` | I–IV | 17 | 193 | Complete schema including the reporting layer (Chapters 1–10) |
 
-> **Note:** `Schema_Tier_I.xlsx` and `Schema_Tier_I_II.xlsx` have been generated but not yet uploaded to this folder.
-
 Each workbook contains:
 - A **Legend** sheet explaining tier colors and scope
 - An **ALL FIELDS** sheet with every table and column in journey order
