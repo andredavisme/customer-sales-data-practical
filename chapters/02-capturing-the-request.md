@@ -100,6 +100,8 @@ A request without an owner is a request that belongs to no one. `req_owner` is t
 
 Ownership is often managed outside the data — in email inboxes, in verbal assignments, in team meetings. The cost of that approach is that when something falls through the cracks, there is no data record of who was responsible. With `req_owner` in the schema, you can measure response rates by owner, identify bottlenecks by team, and hold the process accountable with numbers rather than memory.
 
+Ownership answers *who on our side is responsible*. A companion field — `req_cont_id` — answers the question raised in the Business Context of this chapter: *who on the customer's side submitted this request, and who should receive the quote?* By linking the request to a specific contact from the `contact` table established in Chapter 1, the chain from customer organization to individual person is complete at the earliest point in the journey.
+
 ---
 
 ## Tier II Schema Updates
@@ -116,6 +118,7 @@ New attributes added in Tier II:
 | II | `req_priority` | Request Priority | Urgency classification: e.g., High, Medium, Low |
 | II | `req_status` | Request Status | Controlled vocabulary: Open, In Review, Pending Information, Converted, Closed — Fulfilled, Closed — Declined |
 | II | `req_owner` | Request Owner | FK → `user.user_id`; internal user responsible for the request |
+| II | `req_cont_id` | Contact ID | FK → `contact.cont_id`; the specific customer contact who submitted or is associated with this request; optional |
 
 *Note: `req_delivery_date` was established in Tier I (see Introduction). It is referenced throughout this chapter as the scheduling anchor for the metadata fields introduced here — but it requires no new addition to the schema.*
 
