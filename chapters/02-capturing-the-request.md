@@ -114,7 +114,7 @@ New attributes added in Tier II:
 | II | `req_category` | Request Category | Broad classification: Product or Service |
 | II | `req_channel` | Request Channel | How the request arrived: e.g., Phone, Email, Portal, In-Person, EDI |
 | II | `req_priority` | Request Priority | Urgency classification: e.g., High, Medium, Low |
-| II | `req_status` | Request Status | Current workflow state: e.g., Open, In Review, Converted, Closed |
+| II | `req_status` | Request Status | Controlled vocabulary: Open, In Review, Pending Information, Converted, Closed — Fulfilled, Closed — Declined |
 | II | `req_owner` | Request Owner | FK → `user.user_id`; internal user responsible for the request |
 
 *Note: `req_delivery_date` was established in Tier I (see Introduction). It is referenced throughout this chapter as the scheduling anchor for the metadata fields introduced here — but it requires no new addition to the schema.*
