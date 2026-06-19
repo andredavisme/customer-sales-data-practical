@@ -75,6 +75,8 @@ This single field unlocks:
 - Multi-site contract management
 - Recognizing when a "new" customer is actually a new branch of an existing relationship
 
+Hierarchy tells you how accounts relate to each other. A companion field — **`cust_acct_mgr_id`** — tells you who on your side owns the relationship. It is the internal accountability anchor for the customer record: the single user responsible for the health of this account. *Note: `cust_acct_mgr_id` references the `user` table, which is introduced in Chapter 3.*
+
 ---
 
 ## Tier II Schema Updates
@@ -88,6 +90,7 @@ New attributes added in Tier II:
 | II | `parent_cust_id` | Parent Customer ID | Self-referencing FK → `customer.cust_id`; null for top-level accounts |
 | II | `cust_industry` | Customer Industry | Standardized industry classification (e.g., Manufacturing, Retail, Healthcare) |
 | II | `cust_tier` | Customer Tier | Internal strategic value classification (e.g., 1, 2, 3 or Platinum, Gold, Silver) |
+| II | `cust_acct_mgr_id` | Account Manager ID | FK → `user.user_id`; internal user responsible for this customer relationship; the `user` table is introduced in Chapter 3 |
 
 ### New Table: `contact`
 
