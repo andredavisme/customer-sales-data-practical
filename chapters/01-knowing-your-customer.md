@@ -159,15 +159,15 @@ This last query is a data quality check as much as an analytical one. Accounts w
 SELECT
   c.cust_id,
   c.cust_name,
-  MIN(o.ord_exp_date) AS first_order_date,
-  MAX(o.ord_exp_date) AS last_order_date
+  MIN(o.ord_date) AS first_order_date,
+  MAX(o.ord_date) AS last_order_date
 FROM customer c
 JOIN "order" o ON c.cust_id = o.cust_id
 GROUP BY c.cust_id, c.cust_name
 ORDER BY last_order_date ASC;
 ```
 
-This query illustrates the principle established in the Data Gap section: customer lifecycle dates are not stored on the customer record — they are derived from the activity chain. The `order` table, linked by `cust_id`, carries the dates. The customer record carries the identity.
+This query illustrates the principle established in the Data Gap section: customer lifecycle dates are not stored on the customer record — they are derived from the activity chain. `ord_date` is the system-generated timestamp set when the order is confirmed (introduced in Chapter 5) and is the correct anchor for first and last order date logic. The customer record carries the identity; the order record carries the event.
 
 ---
 
