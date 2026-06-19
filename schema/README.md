@@ -1,6 +1,6 @@
 # Schema
 
-This folder contains the complete data model for the textbook in both a legacy combined workbook and four finalized per-tier workbooks.
+This folder contains the complete data model for the textbook as a set of cumulative workbooks — one per tier boundary, plus the full complete schema.
 
 ---
 
@@ -9,10 +9,11 @@ This folder contains the complete data model for the textbook in both a legacy c
 | File | Tiers | Tables | Fields | Description |
 |------|-------|--------|--------|-------------|
 | `Schema_Tier_I.xlsx` | I | 8 | 58 | Foundation schema only — the minimal baseline from the Introduction |
-| `Schema_Tier_I_II.xlsx` | I–II | 14 | 136 | Adds contacts, users, SKUs, and line-level detail (Chapters 1–5) |
-| `Schema_Tier_I_II_III.xlsx` | I–III | 16 | 170 | Full transactional schema incl. fulfillment, adjustments, and responses (Chapters 6–8) |
-| `Schema_Complete_Tier_I_IV.xlsx` | I–IV | 17 | 194 | Complete schema including the reporting layer (Chapters 1–10) |
-| `Customer_Processing_Schema.xlsx` | I | 8 | — | Original working workbook from Phase I |
+| `Schema_Tier_I_II.xlsx` | I–II | 14 | 135 | Adds contacts, users, SKUs, and line-level detail (Chapters 1–5) |
+| `Schema_Tier_I_III.xlsx` | I–III | 16 | 169 | Full transactional schema incl. fulfillment, adjustments, and responses (Chapters 6–8) |
+| `Schema_Complete_Tier_I_IV_updated.xlsx` | I–IV | 17 | 193 | Complete schema including the reporting layer (Chapters 1–10) |
+
+> **Note:** `Schema_Tier_I.xlsx` and `Schema_Tier_I_II.xlsx` have been generated but not yet uploaded to this folder.
 
 Each workbook contains:
 - A **Legend** sheet explaining tier colors and scope
@@ -25,10 +26,10 @@ Each workbook contains:
 
 | Tier | Color | Introduced In |
 |------|-------|---------------|
-| Tier I | Blue | Introduction — 8 core tables, minimum viable schema |
+| Tier I | Yellow | Introduction — 8 core tables, minimum viable schema |
 | Tier II | Green | Chapters 1–5 — Contacts, users, SKUs, line-level detail |
-| Tier III | Amber | Chapters 6–8 — Fulfillment tracking, adjustments, customer responses |
-| Tier IV | Red | Chapters 9–10 — Reporting layer: period, kpi_definition, kpi_snapshot |
+| Tier III | Blue | Chapters 6–8 — Fulfillment tracking, adjustments, customer responses |
+| Tier IV | Pink | Chapters 9–10 — Reporting layer: period, kpi_definition, kpi_snapshot |
 
 ---
 
@@ -59,7 +60,7 @@ Each workbook contains:
 ## Updating the Schema
 
 When a chapter introduces schema changes:
-1. Update the relevant per-tier workbook
-2. Update `Schema_Complete_Tier_I_IV.xlsx`
+1. Update `Schema_Complete_Tier_I_IV_updated.xlsx`
+2. Regenerate the per-tier workbooks from the complete file
 3. Update the Table Inventory above if a new table is added
 4. Commit with message: `schema: tier [X] — [brief description]`
