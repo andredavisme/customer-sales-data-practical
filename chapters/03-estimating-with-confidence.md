@@ -185,7 +185,7 @@ SELECT
 FROM estimate e
 JOIN customer c ON e.cust_id = c.cust_id
 JOIN request r ON e.req_id = r.req_id
-WHERE r.req_status NOT IN ('Closed - Fulfilled', 'Closed - Declined')
+WHERE r.req_status NOT IN ('Closed — Fulfilled', 'Closed — Declined')
 ORDER BY margin_pct ASC;
 ```
 
