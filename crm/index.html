@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Customer Sales Data: A Practical Guide — CRM</title>
+  <meta name="description" content="An interactive CRM demonstration built from the Customer Sales Data Practical textbook. Explore the 8-step customer journey live." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300..700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+
+  <!-- NAV -->
+  <nav class="nav" aria-label="Primary navigation">
+    <div class="nav-inner">
+      <a class="nav-logo" href="#">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-label="CSDP logo" role="img">
+          <rect x="3" y="3" width="22" height="22" rx="4" stroke="var(--color-primary)" stroke-width="1.5" fill="none"/>
+          <path d="M8 14h12M8 10h8M8 18h10" stroke="var(--color-primary)" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span class="nav-logo-text">CSDP</span>
+      </a>
+      <div class="nav-links">
+        <a href="#dashboard">Dashboard</a>
+        <a href="#customers">Customers</a>
+        <a href="#journey">Journey</a>
+        <a href="#textbook">Textbook</a>
+        <button class="theme-toggle" data-theme-toggle aria-label="Switch to light mode">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main id="main">
+
+    <!-- HERO -->
+    <header class="hero">
+      <div class="hero-bg" aria-hidden="true"></div>
+      <div class="hero-grid-lines" aria-hidden="true"></div>
+      <div class="hero-content">
+        <p class="hero-eyebrow">Customer Sales Data · A Practical Guide</p>
+        <h1 class="hero-headline">YOUR DATA.<br><span>YOUR CUSTOMERS.</span><br>YOUR ANSWERS.</h1>
+        <p class="hero-sub">A live CRM demonstration built on the 8-step customer data journey. Every panel below pulls from a real Supabase database — built alongside the textbook.</p>
+        <div class="hero-stats" id="hero-stats" role="list" aria-label="Live database metrics">
+          <div role="listitem">
+            <div class="hero-stat-num" id="stat-customers">—</div>
+            <div class="hero-stat-label">Customers</div>
+          </div>
+          <div role="listitem">
+            <div class="hero-stat-num" id="stat-orders">—</div>
+            <div class="hero-stat-label">Orders</div>
+          </div>
+          <div role="listitem">
+            <div class="hero-stat-num" id="stat-delivery-rate">—</div>
+            <div class="hero-stat-label">On-Time Delivery</div>
+          </div>
+          <div role="listitem">
+            <div class="hero-stat-num" id="stat-open-orders">—</div>
+            <div class="hero-stat-label">Open Orders</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- DASHBOARD -->
+    <section id="dashboard" class="section">
+      <div class="container">
+        <p class="section-label">Live Database</p>
+        <h2 class="section-title">Baseline Intelligence</h2>
+        <p class="section-sub">The six questions every sales operation should answer on day one.</p>
+
+        <div class="intel-grid">
+
+          <!-- Customer Count by Type -->
+          <article class="intel-card reveal" id="card-customer-count">
+            <div class="intel-card-icon" aria-hidden="true">🏢</div>
+            <div class="intel-card-title">Customers by Type</div>
+            <div class="intel-card-body" id="data-customer-count">Loading…</div>
+          </article>
+
+          <!-- Open Orders -->
+          <article class="intel-card reveal" id="card-open-orders">
+            <div class="intel-card-icon" aria-hidden="true">📦</div>
+            <div class="intel-card-title">Open Orders</div>
+            <div class="intel-card-body" id="data-open-orders">Loading…</div>
+          </article>
+
+          <!-- Delivery Rate -->
+          <article class="intel-card reveal" id="card-delivery-rate">
+            <div class="intel-card-icon" aria-hidden="true">🚚</div>
+            <div class="intel-card-title">Delivery Rate</div>
+            <div class="intel-card-body" id="data-delivery-rate">Loading…</div>
+          </article>
+
+          <!-- Most Profitable -->
+          <article class="intel-card reveal" id="card-profitable">
+            <div class="intel-card-icon" aria-hidden="true">💰</div>
+            <div class="intel-card-title">Most Profitable Customers</div>
+            <div class="intel-card-body" id="data-profitable">Loading…</div>
+          </article>
+
+          <!-- New Customers -->
+          <article class="intel-card reveal" id="card-new-customers">
+            <div class="intel-card-icon" aria-hidden="true">✨</div>
+            <div class="intel-card-title">New Customers</div>
+            <div class="intel-card-body" id="data-new-customers">Loading…</div>
+          </article>
+
+          <!-- Customer Satisfaction -->
+          <article class="intel-card reveal" id="card-satisfaction">
+            <div class="intel-card-icon" aria-hidden="true">💬</div>
+            <div class="intel-card-title">Customer Satisfaction</div>
+            <div class="intel-card-body" id="data-satisfaction">Loading…</div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- CUSTOMER JOURNEY -->
+    <section id="journey" class="section" style="background:var(--color-surface);">
+      <div class="container">
+        <p class="section-label">The 8-Step Journey</p>
+        <h2 class="section-title">Customer Data Flow</h2>
+        <p class="section-sub">Every customer interaction follows a logical sequence. Every step creates a record.</p>
+
+        <div class="steps" id="journey-steps">
+          <div class="step reveal">
+            <div class="step-num">01</div>
+            <div>
+              <div class="step-title">Customer</div>
+              <p class="step-body">Who is asking? The foundation of every record.</p>
+            </div>
+          </div>
+          <div class="step reveal">
+            <div class="step-num">02</div>
+            <div>
+              <div class="step-title">Request</div>
+              <p class="step-body">What are they asking for? Captures the initial intent.</p>
+            </div>
+          </div>
+          <div class="step reveal">
+            <div class="step-num">03</div>
+            <div>
+              <div class="step-title">Estimate</div>
+              <p class="step-body">What will it take to fulfill? Internal cost and timeline analysis.</p>
+            </div>
+          </div>
+          <div class="step reveal">
+            <div class="step-num">04</div>
+            <div>
+              <div class="step-title">Quote</div>
+              <p class="step-body">What is the formal offer? The external-facing commitment.</p>
+            </div>
+          </div>
+          <div class="step reveal">
+            <div class="step-num">05</div>
+            <div>
+              <div class="step-title">Order</div>
+              <p class="step-body">What has been agreed upon? The binding record of the transaction.</p>
+            </div>
+          </div>
+          <div class="step reveal">
+            <div class="step-num">06</div>
+            <div>
+              <div class="step-title">Delivery</div>
+              <p class="step-body">What was delivered, and when? The moment of truth.</p>
+            </div>
+          </div>
+          <div class="step reveal">
+            <div class="step-num">07</div>
+            <div>
+              <div class="step-title">Adjustment</div>
+              <p class="step-body">What changed along the way? Tracks deviations from the original agreement.</p>
+            </div>
+          </div>
+          <div class="step reveal">
+            <div class="step-num">08</div>
+            <div>
+              <div class="step-title">Response</div>
+              <p class="step-body">How did the customer react? The feedback that closes the loop.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CUSTOMERS TABLE -->
+    <section id="customers" class="section">
+      <div class="container">
+        <p class="section-label">Live Records</p>
+        <h2 class="section-title">Customer Roster</h2>
+        <p class="section-sub">All customers currently in the database.</p>
+        <div class="peer-table-wrap reveal">
+          <table class="peer-table" aria-label="Customer list" id="customer-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Branch</th>
+              </tr>
+            </thead>
+            <tbody id="customer-table-body">
+              <tr><td colspan="4">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TEXTBOOK -->
+    <section id="textbook" class="section" style="background:var(--color-surface);">
+      <div class="container">
+        <p class="section-label">The Textbook</p>
+        <h2 class="section-title">Customer Sales Data:<br>A Practical Guide</h2>
+        <p class="section-sub">A progressive, hands-on guide for people who work with customers and want straight answers from their data.</p>
+        <div class="intel-grid" style="margin-top:var(--space-8);">
+          <article class="intel-card reveal">
+            <div class="intel-card-icon" aria-hidden="true">📚</div>
+            <div class="intel-card-title">Read the Textbook</div>
+            <p class="intel-card-body">Browse all 10 chapters and the addendum directly in the GitHub repository.</p>
+            <a href="https://github.com/andredavisme/customer-sales-data-practical/tree/main/chapters" target="_blank" rel="noopener" class="card-link">View on GitHub →</a>
+          </article>
+          <article class="intel-card reveal">
+            <div class="intel-card-icon" aria-hidden="true">📄</div>
+            <div class="intel-card-title">Download PDF</div>
+            <p class="intel-card-body">A formatted, print-ready PDF edition of the full textbook. Coming soon.</p>
+            <span class="badge badge-gold" style="margin-top:auto;">Coming Soon</span>
+          </article>
+          <article class="intel-card reveal">
+            <div class="intel-card-icon" aria-hidden="true">🔗</div>
+            <div class="intel-card-title">Repository</div>
+            <p class="intel-card-body">Schema workbook, migration files, and full source code for this CRM application.</p>
+            <a href="https://github.com/andredavisme/customer-sales-data-practical" target="_blank" rel="noopener" class="card-link">View on GitHub →</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <p class="footer-text">Customer Sales Data: A Practical Guide · Built by <a href="https://andremauricedavis.com/" target="_blank" rel="noopener">André Maurice Davis</a> · <a href="https://github.com/andredavisme" target="_blank" rel="noopener">207 Analytix</a></p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
