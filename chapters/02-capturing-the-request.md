@@ -111,12 +111,13 @@ New attributes added in Tier II:
 | Tier | Column Name | Attribute Name | Notes |
 |------|-------------|---------------|-------|
 | II | `req_date` | Request Date | Timestamp of when the request was received; system-generated |
-| II | `req_delivery_date` | Requested Delivery Date | The date the customer needs delivery; origin point for all downstream scheduling comparisons |
 | II | `req_category` | Request Category | Broad classification: Product or Service |
 | II | `req_channel` | Request Channel | How the request arrived: e.g., Phone, Email, Portal, In-Person, EDI |
 | II | `req_priority` | Request Priority | Urgency classification: e.g., High, Medium, Low |
 | II | `req_status` | Request Status | Current workflow state: e.g., Open, In Review, Converted, Closed |
 | II | `req_owner` | Request Owner | FK → `user.user_id`; internal user responsible for the request |
+
+*Note: `req_delivery_date` was established in Tier I (see Introduction). It is referenced throughout this chapter as the scheduling anchor for the metadata fields introduced here — but it requires no new addition to the schema.*
 
 ---
 
@@ -210,7 +211,7 @@ This query measures the natural lead time customers are building into their requ
 
 3. What does your current request-to-order conversion rate look like? If you cannot calculate it, what does that tell you about your request data?
 
-4. Think about a request that stalled or fell through the cracks in the past year. Which of the Tier II fields added in this chapter — date, delivery date, category, channel, priority, status, owner — would have made that request visible before it became a problem?
+4. Think about a request that stalled or fell through the cracks in the past year. Which of the Tier II fields added in this chapter — date, category, channel, priority, status, owner — would have made that request visible before it became a problem?
 
 5. Consider the gap between when customers submit requests and when they say they need delivery. Does that gap vary by channel, by customer type, or by product category? What would knowing that gap tell you about your quoting and scheduling capacity?
 
