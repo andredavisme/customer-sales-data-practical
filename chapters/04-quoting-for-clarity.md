@@ -188,6 +188,7 @@ Complete set of Tier II additions to the `quote` table:
 | Tier | Column Name | Attribute Name | Notes |
 |------|-------------|----------------|-------|
 | II | `qte_date` | Quote Date | Timestamp when the quote was created; system-generated |
+| II | `qte_status` | Quote Status | Controlled vocabulary: Draft, Sent, Accepted, Cancelled — the current lifecycle state of the quote |
 | II | `qte_est_id` | Estimate ID | FK → `estimate.est_id`; estimate this quote was derived from |
 | II | `qte_parent_id` | Parent Quote ID | FK → `quote.qte_id`; NULL on original; prior version on revisions |
 | II | `qte_version` | Quote Version | Integer; 1 = original |
