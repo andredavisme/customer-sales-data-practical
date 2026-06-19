@@ -132,14 +132,16 @@ Two fields address this:
 
 ## Tracking the Conversation: Sent and Response Dates
 
-The quote artifact travels from your organization to the customer. Capturing when it was sent — and when the customer responded — closes the loop on one of the most operationally valuable timing metrics in the sales process: **quote response time**.
+The quote artifact travels from your organization to the customer. Before it is sent, there is the moment it was created: **`qte_date`** — the timestamp when the quote record was generated, system-set at creation and never changed. It is the reference point for every pipeline age calculation, response time metric, and expiry window measurement the quote will ever participate in.
+
+From there, two more dates close the loop on the conversation:
 
 | Tier | Column Name | Attribute Name | Notes |
 |------|-------------|----------------|-------|
 | II | `qte_sent_date` | Sent Date | Date the quote was delivered to the customer |
 | II | `qte_response_date` | Response Date | Date the customer replied (accepted, rejected, or countered) |
 
-The gap between these two dates is the customer's decision window. Patterns in that window — by customer type, by approver, by quote value — inform follow-up cadence and pipeline forecasting.
+The gap between `qte_sent_date` and `qte_response_date` is the customer's decision window. Patterns in that window — by customer type, by approver, by quote value — inform follow-up cadence and pipeline forecasting.
 
 ---
 
@@ -185,6 +187,7 @@ Complete set of Tier II additions to the `quote` table:
 
 | Tier | Column Name | Attribute Name | Notes |
 |------|-------------|----------------|-------|
+| II | `qte_date` | Quote Date | Timestamp when the quote was created; system-generated |
 | II | `qte_est_id` | Estimate ID | FK → `estimate.est_id`; estimate this quote was derived from |
 | II | `qte_parent_id` | Parent Quote ID | FK → `quote.qte_id`; NULL on original; prior version on revisions |
 | II | `qte_version` | Quote Version | Integer; 1 = original |
